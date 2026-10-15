@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Morton Signature Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+:root{
+  --bg:#F3F7F6; --panel:#FFFFFF; --ink:#12302D; --muted:#5B716E; --line:#D5E1DE;
+  --accent:#1F6F6B; --accent-ink:#FFFFFF; --soft:#E1EFEC; --field:#FFFFFF; --focus:#2A9D8F;
+  --code:#0F2523; --code-ink:#CFE8E3;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0E1A19; --panel:#152523; --ink:#E4F0EE; --muted:#93AAA6; --line:#2A3D3A;
+    --accent:#4FB3A9; --accent-ink:#06201D; --soft:#1C3431; --field:#0F1E1C; --focus:#6FD1C6;
+    --code:#08110F; --code-ink:#BFE0DA;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0E1A19; --panel:#152523; --ink:#E4F0EE; --muted:#93AAA6; --line:#2A3D3A;
+  --accent:#4FB3A9; --accent-ink:#06201D; --soft:#1C3431; --field:#0F1E1C; --focus:#6FD1C6;
+  --code:#08110F; --code-ink:#BFE0DA;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 "Figtree",system-ui,-apple-system,Segoe UI,sans-serif;padding-inline:16px;padding-block:28px 64px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding-bottom:18px}
+.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font-family:"Bricolage Grotesque",Figtree,sans-serif;font-size:clamp(28px,4vw,40px);line-height:1.05;margin:4px 0 0;text-wrap:balance}
+header p{margin:6px 0 0;color:var(--muted);max-width:60ch}
+.badge{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:4px 10px;color:var(--muted);background:var(--panel)}
+.grid{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+.panel h2{font-family:"Bricolage Grotesque",Figtree,sans-serif;font-size:18px;margin:0 0 4px}
+.panel .sub{color:var(--muted);font-size:13px;margin:0 0 14px}
+fieldset{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+fieldset+fieldset{margin-top:20px;padding-top:18px;border-top:1px dashed var(--line)}
+legend{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:0;margin-bottom:10px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row.r3{grid-template-columns:2fr 1fr}
+@media (max-width:420px){.row{grid-template-columns:1fr}}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:500}
+label small{font-weight:400;color:var(--muted)}
+input[type=text],input[type=email],input[type=url],input[type=tel],textarea,select{
+  font:inherit;font-size:14px;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+textarea{min-height:88px;resize:vertical}
+input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.check{flex-direction:row;align-items:center;gap:8px;font-weight:500}
+.swatches{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sw{width:28px;height:28px;border-radius:50%;border:2px solid var(--panel);box-shadow:0 0 0 1px var(--line);cursor:pointer;padding:0}
+.sw[aria-pressed="true"]{box-shadow:0 0 0 2px var(--ink)}
+input[type=color]{width:36px;height:30px;border:1px solid var(--line);border-radius:8px;background:var(--field);padding:2px;cursor:pointer}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line);background:var(--field);color:var(--ink);border-radius:999px;padding:6px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.right{display:flex;flex-direction:column;gap:24px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px)}
+@media (max-width:900px){.right{position:static}}
+.mail{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+.mailbar{display:flex;flex-direction:column;gap:2px;padding:12px 16px;border-bottom:1px solid #E6ECEB;background:#FAFCFB;color:#3C4A48;font-size:13px}
+.mailbar b{color:#1a1a1a;font-weight:600}
+.mailbody{padding:18px 16px 22px;color:#222;font:14px/1.5 Arial,Helvetica,sans-serif;overflow-x:auto}
+.mailbody p{margin:0 0 14px}
+.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{font:inherit;font-weight:600;font-size:14px;border-radius:10px;padding:10px 16px;cursor:pointer;border:1px solid var(--line);background:var(--field);color:var(--ink)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.meter{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;margin-left:auto}
+.meter.warn{color:#B4541B;font-weight:600}
+.toast{font-size:13px;color:var(--accent);font-weight:600;min-height:1.2em}
+pre{background:var(--code);color:var(--code-ink);border-radius:10px;padding:14px;font:12px/1.55 "JetBrains Mono",ui-monospace,Menlo,monospace;overflow-x:auto;white-space:pre-wrap;word-break:break-all;max-height:280px;margin:0}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:14px;flex-wrap:wrap}
+.tabs button{font:inherit;font-size:14px;font-weight:600;background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);padding:8px 12px;cursor:pointer;margin-bottom:-1px}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
+ol.steps li::marker{color:var(--accent);font-weight:700}
+.note{background:var(--soft);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--ink);margin-top:14px}
+kbd{font:12px "JetBrains Mono",monospace;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 5px;background:var(--field)}
+.example{font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head><body>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">Morton Dental Group · Google Workspace</div>
+      <h1>Email Signature Builder</h1>
+      <p>Fill in your details, pick a layout, then copy the signature and paste it into Gmail. Everything runs in your browser. Nothing you type is sent anywhere.</p>
+    </div>
+    <span class="badge">Built for Gmail · Prepared by Standard Computer</span>
+  </header>
+
+  <div class="grid">
+    <!-- FORM -->
+    <form class="panel" id="form" autocomplete="off">
+      <h2>Your details</h2>
+      <p class="sub example" id="exampleNote">The form starts with example details. Replace them with your own.</p>
+
+      <fieldset>
+        <legend>Who you are</legend>
+        <div class="row r3">
+          <label for="name">Full name<input type="text" id="name"></label>
+          <label for="creds">Credentials <small>DDS, RDH…</small><input type="text" id="creds"></label>
+        </div>
+        <label for="title">Job title<input type="text" id="title"></label>
+        <label for="office">Office / practice name
+          <input type="text" id="office" list="officeList">
+          <datalist id="officeList">
+            <option value="Morton Dental Group"></option>
+            <option value="College Street Smiles"></option>
+          </datalist>
+        </label>
+        <label for="address">Office address <small>optional, one line</small><input type="text" id="address"></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>How to reach you</legend>
+        <div class="row r3">
+          <label for="phone">Office phone<input type="tel" id="phone"></label>
+          <label for="ext">Ext.<input type="text" id="ext"></label>
+        </div>
+        <div class="row">
+          <label for="mobile">Mobile <small>optional</small><input type="tel" id="mobile"></label>
+          <label for="fax">Fax <small>optional</small><input type="tel" id="fax"></label>
+        </div>
+        <label for="email">Email<input type="email" id="email"></label>
+        <label for="website">Website<input type="text" id="website"></label>
+        <label for="booking">Online booking link <small>adds a "Book an appointment" button</small><input type="url" id="booking" placeholder="https://"></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Images</legend>
+        <p class="sub" style="margin:0">Gmail only shows images hosted at a public <b>https://</b> address. Paste the link to the image, or leave it blank for a text-only signature.</p>
+        <label for="logo">Logo image URL<input type="url" id="logo" placeholder="https://…/logo.png"></label>
+        <label for="photo">Headshot image URL <small>square image works best</small><input type="url" id="photo" placeholder="https://…/headshot.jpg"></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Social &amp; reviews</legend>
+        <div class="row">
+          <label for="fb">Facebook URL<input type="url" id="fb" placeholder="https://facebook.com/…"></label>
+          <label for="ig">Instagram URL<input type="url" id="ig" placeholder="https://instagram.com/…"></label>
+        </div>
+        <label for="review">Google review link <small>adds "Leave us a review"</small><input type="url" id="review" placeholder="https://g.page/r/…"></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Style</legend>
+        <div class="seg" id="layoutSeg" role="group" aria-label="Layout">
+          <button type="button" data-layout="classic" aria-pressed="true">Classic</button>
+          <button type="button" data-layout="banner" aria-pressed="false">Letterhead</button>
+          <button type="button" data-layout="compact" aria-pressed="false">Reply (compact)</button>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:500;margin-bottom:6px">Brand color</div>
+          <div class="swatches" id="swatches"></div>
+        </div>
+        <label class="check" for="discOn"><input type="checkbox" id="discOn"> Include confidentiality notice</label>
+        <label for="disc">Notice text<textarea id="disc"></textarea></label>
+      </fieldset>
+
+      <div class="actions" style="margin-top:20px">
+        <button type="button" class="btn" id="resetBtn">Start over with blank form</button>
+      </div>
+    </form>
+
+    <!-- PREVIEW + INSTALL -->
+    <div class="right">
+      <section class="panel">
+        <h2>Preview</h2>
+        <p class="sub">This is how your signature will look at the bottom of an email.</p>
+        <div class="mail">
+          <div class="mailbar"><span><b>To:</b> patient@example.com</span><span><b>Subject:</b> Your upcoming visit</span></div>
+          <div class="mailbody">
+            <p>Hi there,<br>Looking forward to seeing you on Thursday.</p>
+            <div id="preview"></div>
+          </div>
+        </div>
+        <div class="actions" style="margin-top:14px">
+          <button type="button" class="btn primary" id="copyBtn">Copy signature</button>
+          <button type="button" class="btn" id="codeBtn" aria-expanded="false">Show HTML</button>
+          <span class="meter" id="meter"></span>
+        </div>
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+        <div id="codeWrap" hidden>
+          <div class="actions" style="margin:6px 0 8px"><button type="button" class="btn" id="copyCode">Copy HTML</button></div>
+          <pre id="code"></pre>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Install it</h2>
+        <div class="tabs" role="tablist">
+          <button role="tab" aria-selected="true" data-tab="gmail">Gmail (computer)</button>
+          <button role="tab" aria-selected="false" data-tab="mobile">Gmail app</button>
+          <button role="tab" aria-selected="false" data-tab="admin">IT: push to users</button>
+        </div>
+
+        <div data-panel="gmail">
+          <ol class="steps">
+            <li>Click <b>Copy signature</b> above.</li>
+            <li>In Gmail, click the gear icon (top right) → <b>See all settings</b>.</li>
+            <li>On the <b>General</b> tab, scroll to <b>Signature</b> → <b>Create new</b>. Name it (for example, "Morton").</li>
+            <li>Click inside the signature box and paste with <kbd>Ctrl</kbd>+<kbd>V</kbd> (Windows) or <kbd>⌘</kbd>+<kbd>V</kbd> (Mac).</li>
+            <li>Under <b>Signature defaults</b>, choose it for <b>For new emails use</b> and <b>On reply/forward use</b>. Tip: build a second one with the <b>Reply (compact)</b> layout and use that for replies.</li>
+            <li>Scroll to the bottom and click <b>Save Changes</b>. Send yourself a test email.</li>
+          </ol>
+          <div class="note"><b>Image not showing?</b> Gmail blocks images that aren't at a public link. Check the logo or headshot URL opens in a private browser window. Gmail also caps signatures at 10,000 characters; the counter under the preview keeps track.</div>
+        </div>
+
+        <div data-panel="mobile" hidden>
+          <ol class="steps">
+            <li>The Gmail app on iPhone and Android only supports a plain-text signature. It does not use the one you set on your computer.</li>
+            <li>Open the Gmail app → menu (☰) → <b>Settings</b> → pick your account.</li>
+            <li>iPhone: <b>Signature settings</b> → turn on <b>Mobile Signature</b>. Android: tap <b>Mobile signature</b>.</li>
+            <li>Type a short version, for example your name, title, office, and phone number.</li>
+          </ol>
+          <div class="note">Emails sent from the Gmail website on your phone's browser, or from a computer, will still use the full signature.</div>
+        </div>
+
+        <div data-panel="admin" hidden>
+          <p class="sub" style="margin-bottom:10px">For IT: set this signature on the user's account centrally with GAMADV-XTD3. Save the HTML as <code>sig.html</code>, then run:</p>
+          <pre id="gam"></pre>
+          <div class="actions" style="margin-top:8px"><button type="button" class="btn" id="copyGam">Copy command</button></div>
+          <div class="note">Test on one account first. Setting a signature this way overwrites whatever the user already has. For a whole office at once, run it per user from a CSV with <code>gam csv users.csv gam user ~email signature file ~file html</code>.</div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const FIELDS=["name","creds","title","office","address","phone","ext","mobile","fax","email","website","booking","logo","photo","fb","ig","review","disc"];
+  const DISC_DEFAULT="CONFIDENTIALITY NOTICE: This email and any attachments may contain confidential or protected health information intended only for the named recipient. If you received this message in error, please notify the sender and delete it. Please do not send patient health information by unsecured email.";
+  const EXAMPLE={name:"Taylor Morgan",creds:"DDS",title:"General Dentist",office:"College Street Smiles",address:"",phone:"(501) 555-0142",ext:"",mobile:"",fax:"",email:"tmorgan@mortondentalgroup.com",website:"mortondentalgroup.com",booking:"",logo:"",photo:"",fb:"",ig:"",review:"",disc:DISC_DEFAULT};
+  const COLORS=[["Teal","#1F6F6B"],["Navy","#1E3A5F"],["Ocean","#2B7BB9"],["Plum","#6B3F69"],["Slate","#3A4750"]];
+  const KEY="morton-sig-v1";
+  const $=id=>document.getElementById(id);
+  let state={layout:"classic",color:"#1F6F6B",discOn:true,example:true};
+
+  // ---------- storage (optional convenience) ----------
+  function load(){try{const s=JSON.parse(localStorage.getItem(KEY)||"null");return s}catch(e){return null}}
+  function save(){try{const o={...state};FIELDS.forEach(f=>o[f]=$(f).value);localStorage.setItem(KEY,JSON.stringify(o))}catch(e){}}
+
+  // ---------- helpers ----------
+  const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const digits=s=>String(s||"").replace(/[^\d+]/g,"");
+  const url=u=>{u=String(u||"").trim();if(!u)return"";return /^https?:\/\//i.test(u)?u:"https://"+u};
+  const bare=u=>String(u||"").trim().replace(/^https?:\/\//i,"").replace(/\/$/,"");
+  const v=f=>$(f).value.trim();
+
+  function data(){const d={};FIELDS.forEach(f=>d[f]=v(f));d.color=state.color;d.discOn=state.discOn;return d}
+
+  // ---------- signature builders (tables + inline styles only) ----------
+  const FONT="font-family:Arial,Helvetica,sans-serif;";
+  function contactLines(d,sep){
+    const c=d.color, items=[];
+    if(d.phone) items.push(`<span style="color:#8a8a8a;">O</span>&nbsp;<a href="tel:${esc(digits(d.phone))}" style="color:#444444;text-decoration:none;">${esc(d.phone)}${d.ext?` ext. ${esc(d.ext)}`:""}</a>`);
+    if(d.mobile) items.push(`<span style="color:#8a8a8a;">M</span>&nbsp;<a href="tel:${esc(digits(d.mobile))}" style="color:#444444;text-decoration:none;">${esc(d.mobile)}</a>`);
+    if(d.fax) items.push(`<span style="color:#8a8a8a;">F</span>&nbsp;<span style="color:#444444;">${esc(d.fax)}</span>`);
+    const line1=items.join(sep);
+    const line2=[
+      d.email?`<a href="mailto:${esc(d.email)}" style="color:#444444;text-decoration:none;">${esc(d.email)}</a>`:"",
+      d.website?`<a href="${esc(url(d.website))}" style="color:${c};text-decoration:none;font-weight:bold;">${esc(bare(d.website))}</a>`:""
+    ].filter(Boolean).join(sep);
+    return {line1,line2};
+  }
+  function extras(d){
+    const c=d.color, links=[];
+    if(d.fb) links.push(`<a href="${esc(url(d.fb))}" style="color:${c};text-decoration:none;font-weight:bold;">Facebook</a>`);
+    if(d.ig) links.push(`<a href="${esc(url(d.ig))}" style="color:${c};text-decoration:none;font-weight:bold;">Instagram</a>`);
+    if(d.review) links.push(`<a href="${esc(url(d.review))}" style="color:${c};text-decoration:none;font-weight:bold;">Leave us a review &#9733;</a>`);
+    const social=links.length?`<tr><td style="${FONT}font-size:12px;padding-top:8px;">${links.join('<span style="color:#c4c4c4;">&nbsp;&nbsp;|&nbsp;&nbsp;</span>')}</td></tr>`:"";
+    const book=d.booking?`<tr><td style="padding-top:10px;"><table cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="${c}" style="background-color:${c};border-radius:4px;padding:7px 14px;"><a href="${esc(url(d.booking))}" style="${FONT}font-size:12px;font-weight:bold;color:#ffffff;text-decoration:none;">Book an appointment</a></td></tr></table></td></tr>`:"";
+    return {social,book};
+  }
+  function disclaimer(d,cols){
+    if(!d.discOn||!d.disc) return "";
+    return `<tr><td colspan="${cols}" style="padding-top:14px;"><table cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:520px;"><tr><td style="border-top:1px solid #e3e3e3;padding-top:8px;${FONT}font-size:10px;line-height:1.45;color:#9a9a9a;">${esc(d.disc)}</td></tr></table></td></tr>`;
+  }
+  const nameHtml=d=>`${esc(d.name||"Your Name")}${d.creds?`<span style="font-weight:normal;color:#666666;">, ${esc(d.creds)}</span>`:""}`;
+
+  function classic(d){
+    const c=d.color, {line1,line2}=contactLines(d,'<span style="color:#c4c4c4;">&nbsp;&nbsp;|&nbsp;&nbsp;</span>'), {social,book}=extras(d);
+    const leftImg=d.photo||d.logo;
+    const left=leftImg?`<td valign="top" style="padding-right:16px;vertical-align:top;"><img src="${esc(url(leftImg))}" alt="${esc(d.photo?d.name:d.office)}" width="84" height="84" style="display:block;width:84px;height:84px;border-radius:50%;border:0;"></td>`:"";
+    const logoBelow=(d.photo&&d.logo)?`<tr><td style="padding-top:10px;"><img src="${esc(url(d.logo))}" alt="${esc(d.office)}" height="34" style="display:block;height:34px;width:auto;border:0;"></td></tr>`:"";
+    return `<table cellpadding="0" cellspacing="0" border="0" style="${FONT}border-collapse:collapse;"><tr>${left}<td valign="top" style="border-left:3px solid ${c};padding-left:14px;vertical-align:top;"><table cellpadding="0" cellspacing="0" border="0">`+
+      `<tr><td style="${FONT}font-size:17px;font-weight:bold;color:#1a1a1a;line-height:1.2;">${nameHtml(d)}</td></tr>`+
+      (d.title?`<tr><td style="${FONT}font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#777777;padding-top:3px;">${esc(d.title)}</td></tr>`:"")+
+      (d.office?`<tr><td style="${FONT}font-size:13px;font-weight:bold;color:${c};padding-top:6px;">${esc(d.office)}</td></tr>`:"")+
+      (line1?`<tr><td style="${FONT}font-size:12px;color:#444444;padding-top:6px;line-height:1.5;">${line1}</td></tr>`:"")+
+      (line2?`<tr><td style="${FONT}font-size:12px;color:#444444;line-height:1.5;">${line2}</td></tr>`:"")+
+      (d.address?`<tr><td style="${FONT}font-size:12px;color:#777777;line-height:1.5;">${esc(d.address)}</td></tr>`:"")+
+      book+social+logoBelow+
+      `</table></td></tr>${disclaimer(d,leftImg?2:1)}</table>`;
+  }
+
+  function banner(d){
+    const c=d.color, {line1,line2}=contactLines(d,'<span style="color:#c4c4c4;">&nbsp;&nbsp;&middot;&nbsp;&nbsp;</span>'), {social,book}=extras(d);
+    const top=d.logo?`<tr><td style="padding-bottom:10px;"><img src="${esc(url(d.logo))}" alt="${esc(d.office)}" height="44" style="display:block;height:44px;width:auto;border:0;"></td></tr>`
+      :(d.office?`<tr><td style="${FONT}font-size:15px;font-weight:bold;letter-spacing:.5px;color:${c};padding-bottom:8px;">${esc(d.office)}</td></tr>`:"");
+    const photo=d.photo?`<td valign="middle" style="padding-right:12px;"><img src="${esc(url(d.photo))}" alt="${esc(d.name)}" width="56" height="56" style="display:block;width:56px;height:56px;border-radius:50%;border:0;"></td>`:"";
+    return `<table cellpadding="0" cellspacing="0" border="0" style="${FONT}border-collapse:collapse;">${top}`+
+      `<tr><td style="border-bottom:3px solid ${c};padding-bottom:10px;"><table cellpadding="0" cellspacing="0" border="0"><tr>${photo}<td valign="middle">`+
+      `<div style="${FONT}font-size:17px;font-weight:bold;color:#1a1a1a;line-height:1.25;">${nameHtml(d)}</div>`+
+      `<div style="${FONT}font-size:12px;color:#666666;">${esc(d.title)}${d.title&&d.logo&&d.office?` &nbsp;|&nbsp; <span style="color:${c};font-weight:bold;">${esc(d.office)}</span>`:""}</div>`+
+      `</td></tr></table></td></tr>`+
+      (line1?`<tr><td style="${FONT}font-size:12px;color:#444444;padding-top:8px;line-height:1.5;">${line1}</td></tr>`:"")+
+      (line2?`<tr><td style="${FONT}font-size:12px;color:#444444;line-height:1.5;">${line2}</td></tr>`:"")+
+      (d.address?`<tr><td style="${FONT}font-size:12px;color:#777777;line-height:1.5;">${esc(d.address)}</td></tr>`:"")+
+      book+social+disclaimer(d,1)+`</table>`;
+  }
+
+  function compact(d){
+    const c=d.color;
+    const bits=[d.phone?`<a href="tel:${esc(digits(d.phone))}" style="color:#555555;text-decoration:none;">${esc(d.phone)}${d.ext?` x${esc(d.ext)}`:""}</a>`:"",
+      d.email?`<a href="mailto:${esc(d.email)}" style="color:#555555;text-decoration:none;">${esc(d.email)}</a>`:""].filter(Boolean).join(" &middot; ");
+    return `<table cellpadding="0" cellspacing="0" border="0" style="${FONT}border-collapse:collapse;"><tr><td style="border-left:3px solid ${c};padding-left:10px;${FONT}font-size:12px;line-height:1.5;color:#555555;">`+
+      `<b style="color:#1a1a1a;font-size:13px;">${nameHtml(d)}</b>${d.title?` &nbsp;|&nbsp; ${esc(d.title)}`:""}<br>`+
+      (d.office?`<span style="color:${c};font-weight:bold;">${esc(d.office)}</span>${bits?" &middot; ":""}`:"")+bits+
+      `</td></tr></table>`;
+  }
+
+  function build(){const d=data();return state.layout==="banner"?banner(d):state.layout==="compact"?compact(d):classic(d)}
+  function plain(){const d=data();return [ [d.name,d.creds].filter(Boolean).join(", "), d.title, d.office, [d.phone&&("O "+d.phone+(d.ext?" ext. "+d.ext:"")), d.mobile&&("M "+d.mobile)].filter(Boolean).join(" | "), d.email, bare(d.website)].filter(Boolean).join("\n")}
+
+  // ---------- render ----------
+  function render(){
+    const html=build();
+    $("preview").innerHTML=html;
+    $("code").textContent=html;
+    const n=html.length, m=$("meter");
+    m.textContent=`${n.toLocaleString()} / 10,000 characters`;
+    m.classList.toggle("warn",n>9000);
+    const email=v("email")||"user@mortondentalgroup.com";
+    $("gam").textContent=`gam user ${email} signature file sig.html html`;
+    $("exampleNote").hidden=!state.example;
+    save();
+  }
+
+  // ---------- swatches ----------
+  function drawSwatches(){
+    const box=$("swatches");box.innerHTML="";
+    COLORS.forEach(([n,hex])=>{const b=document.createElement("button");b.type="button";b.className="sw";b.style.background=hex;b.title=n;b.setAttribute("aria-label",n+" "+hex);b.setAttribute("aria-pressed",String(state.color.toLowerCase()===hex.toLowerCase()));b.onclick=()=>{state.color=hex;$("customColor").value=hex;drawSwatches();render()};box.appendChild(b)});
+    let ci=$("customColor");
+    if(!ci){ci=document.createElement("input");ci.type="color";ci.id="customColor";ci.title="Custom color (match your logo)";ci.setAttribute("aria-label","Custom brand color");ci.oninput=()=>{state.color=ci.value;drawSwatches();render()}}
+    ci.value=state.color;box.appendChild(ci);
+  }
+
+  // ---------- copy ----------
+  const toast=t=>{$("toast").textContent=t;clearTimeout(toast.t);toast.t=setTimeout(()=>$("toast").textContent="",4000)};
+  function selectAndCopy(node){
+    const r=document.createRange();r.selectNodeContents(node);const s=getSelection();s.removeAllRanges();s.addRange(r);
+    let ok=false;try{ok=document.execCommand("copy")}catch(e){}
+    return ok;
+  }
+  $("copyBtn").onclick=()=>{
+    const html=build(), txt=plain();
+    const fallback=()=>{ if(selectAndCopy($("preview"))){getSelection().removeAllRanges();toast("Copied. Now paste it into Gmail's signature box.")} else toast("Your browser blocked copying. The signature is selected: press Ctrl+C or ⌘+C.") };
+    try{
+      if(navigator.clipboard&&window.ClipboardItem){
+        navigator.clipboard.write([new ClipboardItem({"text/html":new Blob([html],{type:"text/html"}),"text/plain":new Blob([txt],{type:"text/plain"})})])
+          .then(()=>toast("Copied. Now paste it into Gmail's signature box.")).catch(fallback);
+      } else fallback();
+    }catch(e){fallback()}
+  };
+  function copyText(t,node,msg){
+    try{navigator.clipboard.writeText(t).then(()=>toast(msg)).catch(()=>{selectAndCopy(node)?toast(msg):toast("Selected. Press Ctrl+C or ⌘+C.")})}
+    catch(e){selectAndCopy(node)?toast(msg):toast("Selected. Press Ctrl+C or ⌘+C.")}
+  }
+  $("copyCode").onclick=()=>copyText(build(),$("code"),"HTML copied.");
+  $("copyGam").onclick=()=>copyText($("gam").textContent,$("gam"),"Command copied.");
+  $("codeBtn").onclick=()=>{const w=$("codeWrap");w.hidden=!w.hidden;$("codeBtn").textContent=w.hidden?"Show HTML":"Hide HTML";$("codeBtn").setAttribute("aria-expanded",String(!w.hidden))};
+
+  // ---------- layout + tabs ----------
+  $("layoutSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>{state.layout=b.dataset.layout;$("layoutSeg").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));render()});
+  document.querySelectorAll("[role=tab]").forEach(t=>t.onclick=()=>{document.querySelectorAll("[role=tab]").forEach(x=>x.setAttribute("aria-selected",String(x===t)));document.querySelectorAll("[data-panel]").forEach(p=>p.hidden=p.dataset.panel!==t.dataset.tab)});
+
+  // ---------- inputs ----------
+  FIELDS.forEach(f=>$(f).addEventListener("input",()=>{state.example=false;render()}));
+  $("discOn").onchange=()=>{state.discOn=$("discOn").checked;$("disc").disabled=!state.discOn;render()};
+  $("form").addEventListener("submit",e=>e.preventDefault());
+  $("resetBtn").onclick=()=>{FIELDS.forEach(f=>$(f).value="");$("website").value="mortondentalgroup.com";$("email").value="@mortondentalgroup.com";$("disc").value=DISC_DEFAULT;state.example=false;render();$("name").focus()};
+
+  // ---------- init ----------
+  const saved=load();
+  const src=saved||EXAMPLE;
+  FIELDS.forEach(f=>$(f).value=src[f]!=null?src[f]:"");
+  if(saved){state.layout=saved.layout||"classic";state.color=saved.color||state.color;state.discOn=saved.discOn!==false;state.example=!!saved.example}
+  $("discOn").checked=state.discOn;$("disc").disabled=!state.discOn;
+  $("layoutSeg").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.layout===state.layout)));
+  drawSwatches();render();
+})();
+</script>
+
+</body></html>
