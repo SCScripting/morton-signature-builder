@@ -134,6 +134,7 @@ kbd{font:12px "JetBrains Mono",monospace;border:1px solid var(--line);border-bot
         <legend>Images</legend>
         <p class="sub" style="margin:0">Gmail only shows images hosted at a public <b>https://</b> address. Paste the link to the image, or leave it blank for a text-only signature.</p>
         <label for="logo">Logo image URL<input type="url" id="logo" placeholder="https://…/logo.png"></label>
+        <div class="actions" style="margin-top:4px"><button type="button" class="btn" id="useMdgLogo">Use MDG logo</button></div>
         <label for="photo">Headshot image URL <small>square image works best</small><input type="url" id="photo" placeholder="https://…/headshot.jpg"></label>
       </fieldset>
 
@@ -235,9 +236,16 @@ kbd{font:12px "JetBrains Mono",monospace;border:1px solid var(--line);border-bot
 (function(){
   const FIELDS=["name","creds","title","office","address","phone","ext","mobile","fax","email","website","booking","logo","photo","fb","ig","review","disc"];
   const DISC_DEFAULT="CONFIDENTIALITY NOTICE: This email and any attachments may contain confidential or protected health information intended only for the named recipient. If you received this message in error, please notify the sender and delete it. Please do not send patient health information by unsecured email.";
-  const EXAMPLE={name:"Taylor Morgan",creds:"DDS",title:"General Dentist",office:"College Street Smiles",address:"",phone:"(501) 555-0142",ext:"",mobile:"",fax:"",email:"tmorgan@mortondentalgroup.com",website:"mortondentalgroup.com",booking:"",logo:"",photo:"",fb:"",ig:"",review:"",disc:DISC_DEFAULT};
+  const EXAMPLE={name:"Taylor Morgan",creds:"DDS",title:"General Dentist",office:"College Street Smiles",address:"",phone:"(501) 555-0142",ext:"",mobile:"",fax:"",email:"tmorgan@mortondentalgroup.com",website:"mortondentalgroup.com",booking:"",logo:"https://scscripting.github.io/morton-signature-builder/assets/mdg-logo-sig-white.png",photo:"",fb:"",ig:"",review:"",disc:DISC_DEFAULT};
   const COLORS=[["Teal","#1F6F6B"],["Navy","#1E3A5F"],["Ocean","#2B7BB9"],["Plum","#6B3F69"],["Slate","#3A4750"]];
   const KEY="morton-sig-v1";
+  // Hosted MDG logo: solid white background, no alpha (transparent PNGs/data URIs can turn into a black box in Gmail/Outlook dark mode). File is 138x88 (2x).
+  const MDG_LOGO="https://scscripting.github.io/morton-signature-builder/assets/mdg-logo-sig-white.png", MDG_RATIO=138/88;
+  function logoImg(d,h){
+    const src=url(d.logo), w=src===MDG_LOGO?Math.round(h*MDG_RATIO):0;
+    const ws=w?` width="${w}"`:"", wc=w?`width:${w}px;`:"width:auto;";
+    return `<img src="${esc(src)}" alt="${esc(d.office||"Morton Dental Group")}"${ws} height="${h}" border="0" style="display:block;${wc}height:${h}px;border:0;outline:none;text-decoration:none;background-color:#ffffff;">`;
+  }
   const $=id=>document.getElementById(id);
   let state={layout:"classic",color:"#1F6F6B",discOn:true,example:true};
 
@@ -286,8 +294,9 @@ kbd{font:12px "JetBrains Mono",monospace;border:1px solid var(--line);border-bot
   function classic(d){
     const c=d.color, {line1,line2}=contactLines(d,'<span style="color:#c4c4c4;">&nbsp;&nbsp;|&nbsp;&nbsp;</span>'), {social,book}=extras(d);
     const leftImg=d.photo||d.logo;
-    const left=leftImg?`<td valign="top" style="padding-right:16px;vertical-align:top;"><img src="${esc(url(leftImg))}" alt="${esc(d.photo?d.name:d.office)}" width="84" height="84" style="display:block;width:84px;height:84px;border-radius:50%;border:0;"></td>`:"";
-    const logoBelow=(d.photo&&d.logo)?`<tr><td style="padding-top:10px;"><img src="${esc(url(d.logo))}" alt="${esc(d.office)}" height="34" style="display:block;height:34px;width:auto;border:0;"></td></tr>`:"";
+    const left=d.photo?`<td valign="top" style="padding-right:16px;vertical-align:top;"><img src="${esc(url(d.photo))}" alt="${esc(d.name)}" width="84" height="84" border="0" style="display:block;width:84px;height:84px;border-radius:50%;border:0;"></td>`
+      :d.logo?`<td valign="top" style="padding-right:16px;vertical-align:top;">${logoImg(d,44)}</td>`:"";
+    const logoBelow=(d.photo&&d.logo)?`<tr><td style="padding-top:10px;">${logoImg(d,34)}</td></tr>`:"";
     return `<table cellpadding="0" cellspacing="0" border="0" style="${FONT}border-collapse:collapse;"><tr>${left}<td valign="top" style="border-left:3px solid ${c};padding-left:14px;vertical-align:top;"><table cellpadding="0" cellspacing="0" border="0">`+
       `<tr><td style="${FONT}font-size:17px;font-weight:bold;color:#1a1a1a;line-height:1.2;">${nameHtml(d)}</td></tr>`+
       (d.title?`<tr><td style="${FONT}font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#777777;padding-top:3px;">${esc(d.title)}</td></tr>`:"")+
@@ -301,7 +310,7 @@ kbd{font:12px "JetBrains Mono",monospace;border:1px solid var(--line);border-bot
 
   function banner(d){
     const c=d.color, {line1,line2}=contactLines(d,'<span style="color:#c4c4c4;">&nbsp;&nbsp;&middot;&nbsp;&nbsp;</span>'), {social,book}=extras(d);
-    const top=d.logo?`<tr><td style="padding-bottom:10px;"><img src="${esc(url(d.logo))}" alt="${esc(d.office)}" height="44" style="display:block;height:44px;width:auto;border:0;"></td></tr>`
+    const top=d.logo?`<tr><td style="padding-bottom:10px;">${logoImg(d,44)}</td></tr>`
       :(d.office?`<tr><td style="${FONT}font-size:15px;font-weight:bold;letter-spacing:.5px;color:${c};padding-bottom:8px;">${esc(d.office)}</td></tr>`:"");
     const photo=d.photo?`<td valign="middle" style="padding-right:12px;"><img src="${esc(url(d.photo))}" alt="${esc(d.name)}" width="56" height="56" style="display:block;width:56px;height:56px;border-radius:50%;border:0;"></td>`:"";
     return `<table cellpadding="0" cellspacing="0" border="0" style="${FONT}border-collapse:collapse;">${top}`+
@@ -376,6 +385,7 @@ kbd{font:12px "JetBrains Mono",monospace;border:1px solid var(--line);border-bot
   $("copyGam").onclick=()=>copyText($("gam").textContent,$("gam"),"Command copied.");
   $("codeBtn").onclick=()=>{const w=$("codeWrap");w.hidden=!w.hidden;$("codeBtn").textContent=w.hidden?"Show HTML":"Hide HTML";$("codeBtn").setAttribute("aria-expanded",String(!w.hidden))};
 
+  $("useMdgLogo").onclick=()=>{$("logo").value=MDG_LOGO;save();render()};
   // ---------- layout + tabs ----------
   $("layoutSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>{state.layout=b.dataset.layout;$("layoutSeg").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));render()});
   document.querySelectorAll("[role=tab]").forEach(t=>t.onclick=()=>{document.querySelectorAll("[role=tab]").forEach(x=>x.setAttribute("aria-selected",String(x===t)));document.querySelectorAll("[data-panel]").forEach(p=>p.hidden=p.dataset.panel!==t.dataset.tab)});
@@ -384,7 +394,7 @@ kbd{font:12px "JetBrains Mono",monospace;border:1px solid var(--line);border-bot
   FIELDS.forEach(f=>$(f).addEventListener("input",()=>{state.example=false;render()}));
   $("discOn").onchange=()=>{state.discOn=$("discOn").checked;$("disc").disabled=!state.discOn;render()};
   $("form").addEventListener("submit",e=>e.preventDefault());
-  $("resetBtn").onclick=()=>{FIELDS.forEach(f=>$(f).value="");$("website").value="mortondentalgroup.com";$("email").value="@mortondentalgroup.com";$("disc").value=DISC_DEFAULT;state.example=false;render();$("name").focus()};
+  $("resetBtn").onclick=()=>{FIELDS.forEach(f=>$(f).value="");$("website").value="mortondentalgroup.com";$("email").value="@mortondentalgroup.com";$("logo").value=MDG_LOGO;$("disc").value=DISC_DEFAULT;state.example=false;render();$("name").focus()};
 
   // ---------- init ----------
   const saved=load();
